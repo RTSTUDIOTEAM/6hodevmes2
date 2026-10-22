@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6-H Sınıf Panosu & Sohbet</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #0f172a; color: #f1f5f9; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { 
+            background: linear-gradient(135deg, #14361e, #1e4627); 
+            padding: 12px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 4px solid #854d0e; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        header h1 { font-size: 1.3rem; color: #fef08a; display: flex; align-items: center; gap: 10px; }
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        #nudge-btn {
+            background: #d97706;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #nudge-btn:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+        #nudge-btn:hover:not(:disabled) { background: #b45309; }
+
+        #chat-container { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            background: #112415;
+            background-image: radial-gradient(#1a3622 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .message { 
+            background: #1e293b; 
+            padding: 10px 14px; 
+            border-radius: 8px; 
+            max-width: 600px; 
+            word-break: break-word; 
+            border-left: 4px solid #10b981; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .message.sticker-msg {
+            background: transparent;
+            border-left: none;
+            box-shadow: none;
+            padding: 4px;
+        }
+        .message.system-msg {
+            background: #451a03;
+            border-left: 4px solid #f59e0b;
+            color: #fef08a;
+            font-weight: bold;
+            text-align: center;
+            align-self: center;
+            width: 100%;
+            max-width: 400px;
+            font-size: 0.85rem;
+        }
+        .message .user { font-weight: bold; color: #34d399; margin-bottom: 4px; font-size: 0.85rem; }
+        .message .time { font-size: 0.7rem; color: #94a3b8; float: right; }
+        .message img, .message video { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 6px; display: block; }
+        .sticker-content { font-size: 2.8rem; line-height: 1; }
+
+        .form-wrapper {
+            position: relative;
+            background: #1e293b;
+            border-top: 2px solid #334155;
+        }
+
+        #sticker-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 15px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            padding: 12px;
+            width: 320px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        #sticker-menu.active {
+            display: block;
+        }
+
+        .sticker-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .sticker-btn {
+            background: #0f172a;
+            border: 1px solid #334155;
+            font-size: 1.5rem;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.1s, background 0.1s;
+        }
+        .sticker-btn:hover { background: #334155; transform: scale(1.15); }
+
+        form { 
+            padding: 12px 15px; 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+        }
+        input[type="text"] { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; outline: none; font-size: 0.9rem;}
+        #username { width: 130px; }
+        #text { flex: 1; }
+        input[type="file"] { display: none; }
+        .action-btn { background: #334155; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+        .action-btn:hover { background: #475569; }
+        button[type="submit"] { background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button[type="submit"]:hover { background: #047857; }
+        #file-name { font-size: 0.75rem; color: #94a3b8; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        @keyframes customShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            10% { transform: translate(-10px, -10px) rotate(-1deg); }
+            20% { transform: translate(10px, 8px) rotate(1deg); }
+            30% { transform: translate(-12px, 6px) rotate(0deg); }
+            40% { transform: translate(12px, -8px) rotate(1deg); }
+            50% { transform: translate(-8px, 10px) rotate(-1deg); }
+            60% { transform: translate(8px, -6px) rotate(0deg); }
+            70% { transform: translate(-10px, 8px) rotate(1deg); }
+            80% { transform: translate(10px, -10px) rotate(-1deg); }
+            90% { transform: translate(-6px, 6px) rotate(0deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        .shake-screen {
+            animation: customShake 0.6s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🏫 6-H Sınıf Ortak Panosu</h1>
+        <div class="header-actions">
+            <button id="nudge-btn">💥 Titreşim Gönder!</button>
+        </div>
+    </header>
+
+    <div id="chat-container"></div>
+
+    <div class="form-wrapper">
+        <div id="sticker-menu">
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; font-weight: bold;">Çıkartma Seç (3sn Limitli):</div>
+            <div class="sticker-grid">
+                <button class="sticker-btn" data-sticker="🍎">🍎</button>
+                <button class="sticker-btn" data-sticker="📚">📚</button>
+                <button class="sticker-btn" data-sticker="✏️">✏️</button>
+                <button class="sticker-btn" data-sticker="📐">📐</button>
+                <button class="sticker-btn" data-sticker="🎒">🎒</button>
+                <button class="sticker-btn" data-sticker="💯">💯</button>
+                <button class="sticker-btn" data-sticker="🧠">🧠</button>
+                <button class="sticker-btn" data-sticker="🚀">🚀</button>
+                <button class="sticker-btn" data-sticker="⭐">⭐</button>
+                <button class="sticker-btn" data-sticker="😎">😎</button>
+                <button class="sticker-btn" data-sticker="🔥">🔥</button>
+                <button class="sticker-btn" data-sticker="💻">💻</button>
+                <button class="sticker-btn" data-sticker="🎨">🎨</button>
+                <button class="sticker-btn" data-sticker="⚽">⚽</button>
+                <button class="sticker-btn" data-sticker="🏀">🏀</button>
+                <button class="sticker-btn" data-sticker="🎮">🎮</button>
+                <button class="sticker-btn" data-sticker="🍕">🍕</button>
+                <button class="sticker-btn" data-sticker="🍦">🍦</button>
+                <button class="sticker-btn" data-sticker="🤖">🤖</button>
+                <button class="sticker-btn" data-sticker="🎉">🎉</button>
+                <button class="sticker-btn" data-sticker="🏆">🏆</button>
+                <button class="sticker-btn" data-sticker="🔔">🔔</button>
+                <button class="sticker-btn" data-sticker="🧪">🧪</button>
+                <button class="sticker-btn" data-sticker="📌">📌</button>
+            </div>
+        </div>
+
+        <form id="chat-form">
+            <input type="text" id="username" placeholder="Adınız / Numaranız" required autocomplete="off" value="Öğrenci">
+            <input type="text" id="text" placeholder="Mesajınızı yazın..." autocomplete="off">
+            <button type="button" id="toggle-sticker-btn" class="action-btn">😃 Çıkartmalar</button>
+            <label for="media" class="action-btn">Medya</label>
+            <input type="file" id="media" accept="image/*,video/*">
+            <span id="file-name"></span>
+            <button type="submit">Gönder</button>
+        </form>
+    </div>
+
+    <audio id="nudge-audio" src="/nudgemega.mp3" preload="auto"></audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const form = document.getElementById('chat-form');
+        const chatContainer = document.getElementById('chat-container');
+        const mediaInput = document.getElementById('media');
+        const fileNameSpan = document.getElementById('file-name');
+        const nudgeBtn = document.getElementById('nudge-btn');
+        const toggleStickerBtn = document.getElementById('toggle-sticker-btn');
+        const stickerMenu = document.getElementById('sticker-menu');
+        const stickerButtons = document.querySelectorAll('.sticker-btn');
+        const nudgeAudio = document.getElementById('nudge-audio');
+
+        let nudgeTimer = null;
+        let lastStickerSentTime = 0;
+
+        toggleStickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            stickerMenu.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!stickerMenu.contains(e.target) && e.target !== toggleStickerBtn) {
+                stickerMenu.classList.remove('active');
+            }
+        });
+
+        function playNudgeAudio() {
+            try {
+                nudgeAudio.currentTime = 0;
+                nudgeAudio.play().catch(e => console.log('Ses oynatılamadı:', e));
+            } catch (e) {
+                console.log('Audio hatası:', e);
+            }
+        }
+
+        mediaInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                fileNameSpan.textContent = '';
+                return;
+            }
+
+            if (file.type.startsWith('video/')) {
+                const videoElement = document.createElement('video');
+                videoElement.preload = 'metadata';
+                videoElement.onloadedmetadata = function() {
+                    window.URL.revokeObjectURL(videoElement.src);
+                    if (videoElement.duration > 10.5) {
+                        alert('Video süresi 10 saniyeden uzun olamaz!');
+                        mediaInput.value = '';
+                        fileNameSpan.textContent = '';
+                    } else {
+                        fileNameSpan.textContent = file.name;
+                    }
+                }
+                videoElement.src = URL.createObjectURL(file);
+            } else {
+                fileNameSpan.textContent = file.name;
+            }
+        });
+
+        stickerButtons.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const now = Date.now();
+                if (now - lastStickerSentTime < 3000) {
+                    const remaining = Math.ceil((3000 - (now - lastStickerSentTime)) / 1000);
+                    alert(`Çıkartma göndermek için ${remaining} saniye beklemelisin!`);
+                    return;
+                }
+
+                const username = document.getElementById('username').value;
+                const sticker = btn.getAttribute('data-sticker');
+
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('text', sticker);
+                formData.append('isSticker', 'true');
+
+                try {
+                    const response = await fetch('/api/send', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (response.ok) {
+                        lastStickerSentTime = Date.now();
+                        stickerMenu.classList.remove('active');
+                    } else {
+                        const resData = await response.json();
+                        alert(resData.message || 'Hata oluştu!');
+                    }
+                } catch (err) {
+                    console.error('Çıkartma gönderme hatası:', err);
+                }
+            });
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const text = document.getElementById('text').value;
+            const file = mediaInput.files[0];
+
+            if (!text && !file) return;
+
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('text', text);
+            formData.append('isSticker', 'false');
+            if (file) {
+                formData.append('media', file);
+            }
+
+            try {
+                const response = await fetch('/api/send', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    document.getElementById('text').value = '';
+                    mediaInput.value = '';
+                    fileNameSpan.textContent = '';
+                }
+            } catch (err) {
+                console.error('Gönderme hatası:', err);
+            }
+        });
+
+        nudgeBtn.addEventListener('click', () => {
+            const username = document.getElementById('username').value;
+            socket.emit('requestNudge', username);
+        });
+
+        socket.on('initHistory', (history) => {
+            chatContainer.innerHTML = '';
+            history.forEach(data => appendMessage(data));
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+
+        socket.on('broadcastMessage', (data) => {
+            appendMessage(data);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+
+        socket.on('triggerNudgeEffect', (data) => {
+            document.body.classList.add('shake-screen');
+            playNudgeAudio();
+
+            setTimeout(() => {
+                document.body.classList.remove('shake-screen');
+            }, 800);
+
+            nudgeBtn.disabled = true;
+            let timeLeft = data.duration;
+            nudgeBtn.textContent = `Sallandı! (${timeLeft}s)`;
+
+            if (nudgeTimer) clearInterval(nudgeTimer);
+
+            nudgeTimer = setInterval(() => {
+                timeLeft--;
+                if (timeLeft > 0) {
+                    nudgeBtn.textContent = `Sallandı! (${timeLeft}s)`;
+                } else {
+                    clearInterval(nudgeTimer);
+                    nudgeBtn.disabled = false;
+                    nudgeBtn.textContent = '💥 Titreşim Gönder!';
+                }
+            }, 1000);
+        });
+
+        function appendMessage(data) {
+            const div = document.createElement('div');
+            
+            if (data.isSystem) {
+                div.className = 'message system-msg';
+                div.innerHTML = `<div>${escapeHtml(data.text)}</div>`;
+            } else if (data.isSticker) {
+                div.className = 'message sticker-msg';
+                div.innerHTML = `
+                    <div class="user">${escapeHtml(data.username)} <span class="time">${data.time}</span></div>
+                    <div class="sticker-content">${escapeHtml(data.text)}</div>
+                `;
+            } else {
+                div.className = 'message';
+                let mediaHTML = '';
+                if (data.mediaUrl) {
+                    if (data.mediaType === 'image') {
+                        mediaHTML = `<img src="${data.mediaUrl}" alt="Görsel">`;
+                    } else if (data.mediaType === 'video') {
+                        mediaHTML = `<video src="${data.mediaUrl}" controls></video>`;
+                    }
+                }
+
+                div.innerHTML = `
+                    <div class="user">${escapeHtml(data.username)} <span class="time">${data.time}</span></div>
+                    <div class="text">${escapeHtml(data.text)}</div>
+                    ${mediaHTML}
+                `;
+            }
+
+            chatContainer.appendChild(div);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
