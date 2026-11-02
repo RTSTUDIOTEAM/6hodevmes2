@@ -1,6 +1,6 @@
 {
   "name": "halk-chat",
-  "version": "6.0.0",
+  "version": "6.3.2",
   "description": "24 Saat Kalici Depolama, Kufur Filtresi ve Ozel Sesli Okul Sohbet Uygulamasi",
   "main": "server.js",
   "scripts": {

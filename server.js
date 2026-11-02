@@ -75,6 +75,7 @@ setInterval(cleanOldMessages, 60 * 1000);
 let lastNudgeTime = 0;
 const NUDGE_COOLDOWN = 15000;
 const userStickerCooldowns = {};
+let onlineCount = 0;
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
@@ -86,7 +87,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 50 * 1024 * 1024 }
+    limits: { fileSize: 20 * 1024 * 1024 }
 });
 
 app.use(express.json());
@@ -112,24 +113,54 @@ app.post('/api/send', upload.single('media'), (req, res) => {
 
     let mediaUrl = null;
     let mediaType = null;
+    let originalName = null;
 
     if (req.file) {
         mediaUrl = `/uploads/${req.file.filename}`;
-        if (req.file.mimetype.startsWith('video/')) {
+        originalName = req.file.originalname;
+        const mime = req.file.mimetype || '';
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const size = req.file.size || 0;
+
+        if (mime.startsWith('video/')) {
             mediaType = 'video';
-        } else if (req.file.mimetype.startsWith('image/')) {
+            if (size > 10 * 1024 * 1024) {
+                try { fs.unlinkSync(req.file.path); } catch (e) {}
+                return res.status(400).json({ success: false, message: 'Video en fazla 10 MB olabilir!' });
+            }
+        } else if (mime.startsWith('image/')) {
             mediaType = 'image';
+        } else if (mime.startsWith('audio/') || ['.mp3', '.ogg', '.wav', '.wma', '.m4a', '.aac', '.flac', '.opus', '.webm'].includes(ext)) {
+            mediaType = 'audio';
+            if (size > 7 * 1024 * 1024) {
+                try { fs.unlinkSync(req.file.path); } catch (e) {}
+                return res.status(400).json({ success: false, message: 'Ses dosyası en fazla 7 MB olabilir!' });
+            }
+        } else if (mime === 'application/pdf' || ext === '.pdf') {
+            mediaType = 'pdf';
+            if (size > 15 * 1024 * 1024) {
+                try { fs.unlinkSync(req.file.path); } catch (e) {}
+                return res.status(400).json({ success: false, message: 'PDF en fazla 15 MB olabilir!' });
+            }
+        } else {
+            mediaType = 'file';
+            if (size > 20 * 1024 * 1024) {
+                try { fs.unlinkSync(req.file.path); } catch (e) {}
+                return res.status(400).json({ success: false, message: 'Dosya en fazla 20 MB olabilir!' });
+            }
         }
     }
 
     const messageData = {
-        id: Date.now(),
+        id: Date.now() + Math.floor(Math.random() * 1000),
         timestamp: Date.now(),
         username: userKey !== '' ? userKey : 'Öğrenci',
         text: text ? text.trim() : '',
         isSticker: isSticker === 'true',
         mediaUrl,
         mediaType,
+        originalName,
+        edited: false,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -138,10 +169,72 @@ app.post('/api/send', upload.single('media'), (req, res) => {
     saveMessages(currentMessages);
 
     io.emit('broadcastMessage', messageData);
+    res.json({ success: true, id: messageData.id });
+});
+
+// Mesaj silme
+app.post('/api/delete', (req, res) => {
+    const { id, username } = req.body;
+    if (!id || !username) return res.status(400).json({ success: false, message: 'Eksik bilgi' });
+
+    let messages = loadMessages();
+    const idx = messages.findIndex(m => m.id == id);
+    if (idx === -1) return res.status(404).json({ success: false, message: 'Mesaj bulunamadı' });
+
+    const msg = messages[idx];
+    if (msg.username !== username.trim()) {
+        return res.status(403).json({ success: false, message: 'Sadece kendi mesajını silebilirsin' });
+    }
+
+    // Medya dosyasını da sil
+    if (msg.mediaUrl) {
+        const fileDiskPath = path.join(__dirname, 'public', msg.mediaUrl);
+        if (fs.existsSync(fileDiskPath)) {
+            try { fs.unlinkSync(fileDiskPath); } catch (e) {}
+        }
+    }
+
+    messages.splice(idx, 1);
+    saveMessages(messages);
+    io.emit('messageDeleted', { id: msg.id });
+    res.json({ success: true });
+});
+
+// Mesaj düzenleme
+app.post('/api/edit', (req, res) => {
+    let { id, username, text } = req.body;
+    if (!id || !username || text === undefined) {
+        return res.status(400).json({ success: false, message: 'Eksik bilgi' });
+    }
+
+    text = (text || '').trim();
+    if (containsProfanity(text)) text = '###';
+
+    let messages = loadMessages();
+    const idx = messages.findIndex(m => m.id == id);
+    if (idx === -1) return res.status(404).json({ success: false, message: 'Mesaj bulunamadı' });
+
+    const msg = messages[idx];
+    if (msg.username !== username.trim()) {
+        return res.status(403).json({ success: false, message: 'Sadece kendi mesajını düzenleyebilirsin' });
+    }
+    if (msg.isSticker || msg.isSystem) {
+        return res.status(400).json({ success: false, message: 'Bu mesaj düzenlenemez' });
+    }
+
+    msg.text = text;
+    msg.edited = true;
+    messages[idx] = msg;
+    saveMessages(messages);
+
+    io.emit('messageEdited', { id: msg.id, text: msg.text, edited: true });
     res.json({ success: true });
 });
 
 io.on('connection', (socket) => {
+    onlineCount++;
+    io.emit('onlineCount', onlineCount);
+
     const recentMessages = cleanOldMessages();
     socket.emit('initHistory', recentMessages);
 
@@ -153,7 +246,7 @@ io.on('connection', (socket) => {
             if (containsProfanity(senderName)) senderName = '###';
 
             const sysMsg = {
-                id: Date.now(),
+                id: Date.now() + Math.floor(Math.random() * 1000),
                 timestamp: Date.now(),
                 isSystem: true,
                 text: `💥 ${senderName} herkese Titreşim gönderdi!`,
@@ -167,6 +260,22 @@ io.on('connection', (socket) => {
             io.emit('broadcastMessage', sysMsg);
             io.emit('triggerNudgeEffect', { duration: 15 });
         }
+    });
+
+    socket.on('typing', (username) => {
+        const name = username && username.trim() ? username.trim() : null;
+        if (name && !containsProfanity(name)) {
+            socket.broadcast.emit('userTyping', name);
+        }
+    });
+
+    socket.on('stopTyping', () => {
+        socket.broadcast.emit('userStopTyping');
+    });
+
+    socket.on('disconnect', () => {
+        onlineCount = Math.max(0, onlineCount - 1);
+        io.emit('onlineCount', onlineCount);
     });
 });
 
