@@ -2,12 +2,38 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>6-H Sınıf Panosu & Sohbet</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: #0f172a; color: #f1f5f9; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            max-height: 100dvh;
+        }
+        body {
+            background: #0f172a;
+            color: #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            width: 100%;
+        }
         
+        #online-bar {
+            background: #0f172a;
+            color: #ffffff;
+            text-align: center;
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-bottom: 1px solid #1e293b;
+            letter-spacing: 0.3px;
+            flex-shrink: 0;
+        }
+
         header { 
             background: linear-gradient(135deg, #14361e, #1e4627); 
             padding: 12px 20px; 
@@ -16,6 +42,7 @@
             align-items: center; 
             border-bottom: 4px solid #854d0e; 
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            flex-shrink: 0;
         }
         header h1 { font-size: 1.3rem; color: #fef08a; display: flex; align-items: center; gap: 10px; }
         
@@ -41,9 +68,11 @@
         #nudge-btn:hover:not(:disabled) { background: #b45309; }
 
         #chat-container { 
-            flex: 1; 
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto; 
-            padding: 20px; 
+            -webkit-overflow-scrolling: touch;
+            padding: 16px; 
             display: flex; 
             flex-direction: column; 
             gap: 12px; 
@@ -56,10 +85,12 @@
             background: #1e293b; 
             padding: 10px 14px; 
             border-radius: 8px; 
-            max-width: 600px; 
+            max-width: min(600px, 100%); 
+            width: 100%;
             word-break: break-word; 
             border-left: 4px solid #10b981; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            position: relative;
         }
         .message.sticker-msg {
             background: transparent;
@@ -78,15 +109,140 @@
             max-width: 400px;
             font-size: 0.85rem;
         }
-        .message .user { font-weight: bold; color: #34d399; margin-bottom: 4px; font-size: 0.85rem; }
-        .message .time { font-size: 0.7rem; color: #94a3b8; float: right; }
+        .message .user-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .message .user { font-weight: bold; color: #34d399; font-size: 0.85rem; }
+        .message .user-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .message .time { font-size: 0.7rem; color: #94a3b8; }
+        .message .edited-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            font-style: italic;
+            margin-bottom: 2px;
+        }
         .message img, .message video { max-width: 100%; max-height: 250px; border-radius: 6px; margin-top: 6px; display: block; }
+        .message audio { width: 100%; max-width: 320px; margin-top: 8px; display: block; }
+        .message embed, .message iframe { width: 100%; height: 280px; margin-top: 8px; border-radius: 6px; border: 1px solid #334155; }
         .sticker-content { font-size: 2.8rem; line-height: 1; }
+
+        .message a.msg-link {
+            color: #60a5fa;
+            text-decoration: underline;
+            word-break: break-all;
+        }
+        .message a.msg-link:hover {
+            color: #93c5fd;
+        }
+
+        .msg-actions {
+            position: relative;
+        }
+        .msg-info-btn {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.75rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            padding: 0;
+        }
+        .msg-info-btn:hover { color: #f1f5f9; background: #334155; border-color: #475569; }
+
+        .msg-menu {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: calc(100% + 8px);
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+            z-index: 60;
+            min-width: 155px;
+            overflow: hidden;
+        }
+        .msg-menu.active { display: block; }
+        .msg-menu button {
+            display: block;
+            width: 100%;
+            background: none;
+            border: none;
+            color: #f1f5f9;
+            padding: 10px 14px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .msg-menu button:hover { background: #334155; }
+        .msg-menu button.delete-btn { color: #f87171; }
+        .msg-menu button.delete-btn:hover { background: #450a0a; }
+
+        /* Dar ekranda menü sola açılsın */
+        @media (max-width: 640px) {
+            .msg-menu {
+                left: auto;
+                right: 0;
+                top: calc(100% + 4px);
+            }
+        }
+
+        .file-unsupported {
+            margin-top: 8px;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 6px;
+            border: 1px dashed #475569;
+            text-align: center;
+        }
+        .file-unsupported p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        .download-btn {
+            display: inline-block;
+            background: #059669;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .download-btn:hover { background: #047857; }
 
         .form-wrapper {
             position: relative;
             background: #1e293b;
             border-top: 2px solid #334155;
+            flex-shrink: 0;
+            z-index: 20;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        #typing-indicator {
+            padding: 2px 16px;
+            font-size: 0.78rem;
+            color: #94a3b8;
+            font-style: italic;
+            min-height: 18px;
+            background: #1e293b;
         }
 
         #sticker-menu {
@@ -132,16 +288,47 @@
             display: flex; 
             gap: 10px; 
             align-items: center; 
+            flex-wrap: nowrap;
         }
         input[type="text"] { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; outline: none; font-size: 0.9rem;}
-        #username { width: 130px; }
-        #text { flex: 1; }
+        #username { width: 130px; min-width: 70px; flex-shrink: 1; }
+        #text { flex: 1; min-width: 80px; }
         input[type="file"] { display: none; }
-        .action-btn { background: #334155; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+        .action-btn { background: #334155; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
         .action-btn:hover { background: #475569; }
-        button[type="submit"] { background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button[type="submit"] { background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
         button[type="submit"]:hover { background: #047857; }
-        #file-name { font-size: 0.75rem; color: #94a3b8; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #file-name { font-size: 0.75rem; color: #94a3b8; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+
+        @media (max-width: 780px) {
+            form { padding: 8px 10px; gap: 6px; }
+            input[type="text"] { padding: 8px; font-size: 0.85rem; }
+            #username { width: 100px; }
+            .action-btn { padding: 8px 10px; font-size: 0.8rem; }
+            button[type="submit"] { padding: 8px 12px; font-size: 0.85rem; }
+            #file-name { max-width: 60px; font-size: 0.7rem; }
+            header { padding: 10px 14px; }
+            header h1 { font-size: 1.1rem; }
+            #nudge-btn { padding: 6px 10px; font-size: 0.8rem; }
+        }
+        @media (max-width: 560px) {
+            form { padding: 6px 8px; gap: 4px; }
+            input[type="text"] { padding: 7px; font-size: 0.8rem; }
+            #username { width: 75px; min-width: 55px; }
+            .action-btn { padding: 7px 8px; font-size: 0.75rem; }
+            button[type="submit"] { padding: 7px 10px; font-size: 0.8rem; }
+            #file-name { display: none; }
+            header h1 { font-size: 1rem; }
+            #nudge-btn { padding: 5px 8px; font-size: 0.75rem; }
+        }
+        @media (max-width: 520px) {
+            .btn-text { display: none; }
+        }
+        @media (max-width: 420px) {
+            #username { width: 60px; min-width: 50px; font-size: 0.75rem; }
+            .action-btn { padding: 6px 8px; font-size: 1rem; }
+            button[type="submit"] { padding: 6px 10px; }
+        }
 
         @keyframes customShake {
             0% { transform: translate(0, 0) rotate(0deg); }
@@ -160,9 +347,77 @@
         .shake-screen {
             animation: customShake 0.6s ease-in-out infinite;
         }
+
+        #name-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        #name-overlay.hidden {
+            display: none;
+        }
+        .name-box {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 28px 32px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .name-box h2 {
+            color: #fef08a;
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+        }
+        .name-box p {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 18px;
+        }
+        .name-box input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            outline: none;
+            font-size: 1rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .name-box button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            width: 100%;
+        }
+        .name-box button:hover { background: #047857; }
     </style>
 </head>
 <body>
+
+    <div id="name-overlay">
+        <div class="name-box">
+            <h2>🏫 6-H Sınıfı</h2>
+            <p>Sohbete katılmak için adınızı / numaranızı yazın</p>
+            <input type="text" id="name-input" placeholder="Adınız / Numaranız" maxlength="30" autocomplete="off">
+            <button id="name-submit-btn">Giriş Yap</button>
+        </div>
+    </div>
+
+    <div id="online-bar">0 kişi çevrimiçi</div>
 
     <header>
         <h1>🏫 6-H Sınıf Ortak Panosu</h1>
@@ -174,6 +429,7 @@
     <div id="chat-container"></div>
 
     <div class="form-wrapper">
+        <div id="typing-indicator"></div>
         <div id="sticker-menu">
             <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; font-weight: bold;">Çıkartma Seç (3sn Limitli):</div>
             <div class="sticker-grid">
@@ -205,17 +461,18 @@
         </div>
 
         <form id="chat-form">
-            <input type="text" id="username" placeholder="Adınız / Numaranız" required autocomplete="off" value="Öğrenci">
+            <input type="text" id="username" placeholder="Adınız / Numaranız" required autocomplete="off">
             <input type="text" id="text" placeholder="Mesajınızı yazın..." autocomplete="off">
-            <button type="button" id="toggle-sticker-btn" class="action-btn">😃 Çıkartmalar</button>
-            <label for="media" class="action-btn">Medya</label>
-            <input type="file" id="media" accept="image/*,video/*">
+            <button type="button" id="toggle-sticker-btn" class="action-btn" title="Çıkartmalar">😃 <span class="btn-text">Çıkartmalar</span></button>
+            <label for="media" class="action-btn" title="Medya seç">📎 <span class="btn-text">Medya</span></label>
+            <input type="file" id="media" accept="image/*,video/*,audio/*,.pdf,application/pdf,.mp3,.ogg,.wav,.wma,.m4a,.aac,.flac,.opus,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv,*/*">
             <span id="file-name"></span>
             <button type="submit">Gönder</button>
         </form>
     </div>
 
     <audio id="nudge-audio" src="/nudgemega.mp3" preload="auto"></audio>
+    <audio id="newmsg-audio" src="/newmessage.wav" preload="auto"></audio>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -229,9 +486,66 @@
         const stickerMenu = document.getElementById('sticker-menu');
         const stickerButtons = document.querySelectorAll('.sticker-btn');
         const nudgeAudio = document.getElementById('nudge-audio');
+        const newmsgAudio = document.getElementById('newmsg-audio');
+        const nameOverlay = document.getElementById('name-overlay');
+        const nameInput = document.getElementById('name-input');
+        const nameSubmitBtn = document.getElementById('name-submit-btn');
+        const usernameInput = document.getElementById('username');
+        const textInput = document.getElementById('text');
+        const onlineBar = document.getElementById('online-bar');
+        const typingIndicator = document.getElementById('typing-indicator');
 
         let nudgeTimer = null;
         let lastStickerSentTime = 0;
+        let typingTimeout = null;
+        let typingClearTimeout = null;
+        let openMenuId = null;
+
+        const LIMITS = {
+            video: 10 * 1024 * 1024,
+            audio: 7 * 1024 * 1024,
+            pdf:   15 * 1024 * 1024,
+            other: 20 * 1024 * 1024
+        };
+
+        function getSavedName() {
+            return localStorage.getItem('halkChatUsername') || '';
+        }
+        function saveName(name) {
+            const clean = (name || '').trim();
+            if (clean) {
+                localStorage.setItem('halkChatUsername', clean);
+                usernameInput.value = clean;
+            }
+        }
+
+        const savedName = getSavedName();
+        if (savedName) {
+            usernameInput.value = savedName;
+            nameOverlay.classList.add('hidden');
+        } else {
+            nameInput.focus();
+        }
+
+        nameSubmitBtn.addEventListener('click', () => {
+            const n = nameInput.value.trim();
+            if (!n) {
+                alert('Lütfen bir ad girin!');
+                return;
+            }
+            saveName(n);
+            nameOverlay.classList.add('hidden');
+        });
+
+        nameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                nameSubmitBtn.click();
+            }
+        });
+
+        usernameInput.addEventListener('change', () => saveName(usernameInput.value));
+        usernameInput.addEventListener('blur', () => saveName(usernameInput.value));
 
         toggleStickerBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -242,16 +556,41 @@
             if (!stickerMenu.contains(e.target) && e.target !== toggleStickerBtn) {
                 stickerMenu.classList.remove('active');
             }
+            // Menüleri kapat
+            if (!e.target.closest('.msg-info-btn') && !e.target.closest('.msg-menu')) {
+                document.querySelectorAll('.msg-menu.active').forEach(m => m.classList.remove('active'));
+                openMenuId = null;
+            }
         });
 
         function playNudgeAudio() {
             try {
                 nudgeAudio.currentTime = 0;
-                nudgeAudio.play().catch(e => console.log('Ses oynatılamadı:', e));
-            } catch (e) {
-                console.log('Audio hatası:', e);
-            }
+                nudgeAudio.play().catch(() => {});
+            } catch (e) {}
         }
+
+        function playNewMessageSound() {
+            try {
+                newmsgAudio.currentTime = 0;
+                newmsgAudio.play().catch(() => {});
+            } catch (e) {}
+        }
+
+        // Yazıyor...
+        textInput.addEventListener('input', () => {
+            const name = usernameInput.value.trim();
+            if (!name) return;
+            socket.emit('typing', name);
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('stopTyping');
+            }, 2000);
+        });
+
+        textInput.addEventListener('blur', () => {
+            socket.emit('stopTyping');
+        });
 
         mediaInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -260,23 +599,26 @@
                 return;
             }
 
-            if (file.type.startsWith('video/')) {
-                const videoElement = document.createElement('video');
-                videoElement.preload = 'metadata';
-                videoElement.onloadedmetadata = function() {
-                    window.URL.revokeObjectURL(videoElement.src);
-                    if (videoElement.duration > 10.5) {
-                        alert('Video süresi 10 saniyeden uzun olamaz!');
-                        mediaInput.value = '';
-                        fileNameSpan.textContent = '';
-                    } else {
-                        fileNameSpan.textContent = file.name;
-                    }
-                }
-                videoElement.src = URL.createObjectURL(file);
-            } else {
-                fileNameSpan.textContent = file.name;
+            const isVideo = file.type.startsWith('video/');
+            const isAudio = file.type.startsWith('audio/') || 
+                /\.(mp3|ogg|wav|wma|m4a|aac|flac|opus)$/i.test(file.name);
+            const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
+            let maxSize = LIMITS.other;
+            let typeLabel = 'Dosya';
+            if (isVideo) { maxSize = LIMITS.video; typeLabel = 'Video'; }
+            else if (isAudio) { maxSize = LIMITS.audio; typeLabel = 'Ses'; }
+            else if (isPdf) { maxSize = LIMITS.pdf; typeLabel = 'PDF'; }
+
+            if (file.size > maxSize) {
+                const mb = (maxSize / (1024 * 1024)).toFixed(0);
+                alert(`${typeLabel} boyutu en fazla ${mb} MB olabilir!\nSeçilen dosya: ${(file.size / (1024 * 1024)).toFixed(1)} MB`);
+                mediaInput.value = '';
+                fileNameSpan.textContent = '';
+                return;
             }
+
+            fileNameSpan.textContent = file.name;
         });
 
         stickerButtons.forEach(btn => {
@@ -288,7 +630,7 @@
                     return;
                 }
 
-                const username = document.getElementById('username').value;
+                const username = usernameInput.value;
                 const sticker = btn.getAttribute('data-sticker');
 
                 const formData = new FormData();
@@ -304,6 +646,8 @@
                     if (response.ok) {
                         lastStickerSentTime = Date.now();
                         stickerMenu.classList.remove('active');
+                        saveName(username);
+                        socket.emit('stopTyping');
                     } else {
                         const resData = await response.json();
                         alert(resData.message || 'Hata oluştu!');
@@ -316,19 +660,20 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const text = document.getElementById('text').value;
+            const username = usernameInput.value;
+            const text = textInput.value;
             const file = mediaInput.files[0];
 
             if (!text && !file) return;
+
+            saveName(username);
+            socket.emit('stopTyping');
 
             const formData = new FormData();
             formData.append('username', username);
             formData.append('text', text);
             formData.append('isSticker', 'false');
-            if (file) {
-                formData.append('media', file);
-            }
+            if (file) formData.append('media', file);
 
             try {
                 const response = await fetch('/api/send', {
@@ -336,45 +681,85 @@
                     body: formData
                 });
                 if (response.ok) {
-                    document.getElementById('text').value = '';
+                    textInput.value = '';
                     mediaInput.value = '';
                     fileNameSpan.textContent = '';
+                } else {
+                    const resData = await response.json().catch(() => ({}));
+                    alert(resData.message || 'Gönderilemedi!');
                 }
             } catch (err) {
                 console.error('Gönderme hatası:', err);
+                alert('Bağlantı hatası, tekrar dene.');
             }
         });
 
         nudgeBtn.addEventListener('click', () => {
-            const username = document.getElementById('username').value;
+            const username = usernameInput.value;
+            saveName(username);
             socket.emit('requestNudge', username);
         });
 
         socket.on('initHistory', (history) => {
             chatContainer.innerHTML = '';
             history.forEach(data => appendMessage(data));
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            scrollToBottom();
+            setTimeout(scrollToBottom, 100);
         });
 
         socket.on('broadcastMessage', (data) => {
             appendMessage(data);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            scrollToBottom();
+            if (!data.isSystem) playNewMessageSound();
+        });
+
+        socket.on('onlineCount', (count) => {
+            onlineBar.textContent = count + ' kişi çevrimiçi';
+        });
+
+        socket.on('userTyping', (name) => {
+            typingIndicator.textContent = name + ' yazıyor...';
+            clearTimeout(typingClearTimeout);
+            typingClearTimeout = setTimeout(() => {
+                typingIndicator.textContent = '';
+            }, 3000);
+        });
+
+        socket.on('userStopTyping', () => {
+            typingIndicator.textContent = '';
+        });
+
+        socket.on('messageDeleted', ({ id }) => {
+            const el = document.querySelector(`.message[data-id="${id}"]`);
+            if (el) el.remove();
+            scrollToBottom();
+        });
+
+        socket.on('messageEdited', ({ id, text, edited }) => {
+            const el = document.querySelector(`.message[data-id="${id}"]`);
+            if (!el) return;
+            const textEl = el.querySelector('.text');
+            if (textEl) textEl.innerHTML = linkify(escapeHtml(text));
+            let editedLabel = el.querySelector('.edited-label');
+            if (edited && !editedLabel) {
+                editedLabel = document.createElement('div');
+                editedLabel.className = 'edited-label';
+                editedLabel.textContent = '(düzenlendi)';
+                const userRow = el.querySelector('.user-row');
+                if (userRow) userRow.after(editedLabel);
+            }
+            scrollToBottom();
         });
 
         socket.on('triggerNudgeEffect', (data) => {
             document.body.classList.add('shake-screen');
             playNudgeAudio();
-
-            setTimeout(() => {
-                document.body.classList.remove('shake-screen');
-            }, 800);
+            setTimeout(() => document.body.classList.remove('shake-screen'), 800);
 
             nudgeBtn.disabled = true;
             let timeLeft = data.duration;
             nudgeBtn.textContent = `Sallandı! (${timeLeft}s)`;
-
             if (nudgeTimer) clearInterval(nudgeTimer);
-
             nudgeTimer = setInterval(() => {
                 timeLeft--;
                 if (timeLeft > 0) {
@@ -387,8 +772,28 @@
             }, 1000);
         });
 
+        function linkify(text) {
+            if (!text) return '';
+            const urlRegex = /(https?:\/\/[^\s<]+)/g;
+            return text.replace(urlRegex, (url) => {
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="msg-link">${url}</a>`;
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function scrollToBottom() {
+            requestAnimationFrame(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        }
+
         function appendMessage(data) {
             const div = document.createElement('div');
+            div.dataset.id = data.id;
             
             if (data.isSystem) {
                 div.className = 'message system-msg';
@@ -396,7 +801,10 @@
             } else if (data.isSticker) {
                 div.className = 'message sticker-msg';
                 div.innerHTML = `
-                    <div class="user">${escapeHtml(data.username)} <span class="time">${data.time}</span></div>
+                    <div class="user-row">
+                        <span class="user">${escapeHtml(data.username)}</span>
+                        <span class="user-right"><span class="time">${data.time}</span></span>
+                    </div>
                     <div class="sticker-content">${escapeHtml(data.text)}</div>
                 `;
             } else {
@@ -407,22 +815,114 @@
                         mediaHTML = `<img src="${data.mediaUrl}" alt="Görsel">`;
                     } else if (data.mediaType === 'video') {
                         mediaHTML = `<video src="${data.mediaUrl}" controls></video>`;
+                    } else if (data.mediaType === 'audio') {
+                        mediaHTML = `<audio src="${data.mediaUrl}" controls></audio>`;
+                    } else if (data.mediaType === 'pdf') {
+                        mediaHTML = `<embed src="${data.mediaUrl}" type="application/pdf" width="100%" height="280px">
+                            <div style="margin-top:6px;"><a href="${data.mediaUrl}" target="_blank" class="download-btn">PDF'yi Aç / İndir</a></div>`;
+                    } else {
+                        const fname = data.originalName ? escapeHtml(data.originalName) : 'Dosya';
+                        mediaHTML = `
+                            <div class="file-unsupported">
+                                <p>bu dosya görüntülenemiyor.</p>
+                                <a href="${data.mediaUrl}" download="${fname}" class="download-btn">⬇️ İndir</a>
+                            </div>
+                        `;
                     }
                 }
 
+                const editedHTML = data.edited ? '<div class="edited-label">(düzenlendi)</div>' : '';
+                const myName = usernameInput.value.trim();
+                const isOwn = data.username === myName;
+
                 div.innerHTML = `
-                    <div class="user">${escapeHtml(data.username)} <span class="time">${data.time}</span></div>
-                    <div class="text">${escapeHtml(data.text)}</div>
+                    <div class="user-row">
+                        <span class="user">${escapeHtml(data.username)}</span>
+                        <span class="user-right">
+                            <span class="time">${data.time}</span>
+                            <span class="msg-actions">
+                                <button class="msg-info-btn" title="Seçenekler">⋮</button>
+                                <div class="msg-menu">
+                                    <button class="copy-btn">Mesajı Kopyala</button>
+                                    ${isOwn && !data.mediaUrl ? '<button class="edit-btn">Düzenle</button>' : ''}
+                                    ${isOwn ? '<button class="delete-btn">Sil</button>' : ''}
+                                </div>
+                            </span>
+                        </span>
+                    </div>
+                    ${editedHTML}
+                    <div class="text">${linkify(escapeHtml(data.text))}</div>
                     ${mediaHTML}
                 `;
+
+                const infoBtn = div.querySelector('.msg-info-btn');
+                const menu = div.querySelector('.msg-menu');
+                infoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.msg-menu.active').forEach(m => {
+                        if (m !== menu) m.classList.remove('active');
+                    });
+                    menu.classList.toggle('active');
+                });
+
+                div.querySelector('.copy-btn').addEventListener('click', () => {
+                    const txt = data.text || '';
+                    navigator.clipboard.writeText(txt).then(() => {
+                        menu.classList.remove('active');
+                    }).catch(() => {
+                        alert('Kopyalanamadı');
+                    });
+                });
+
+                const editBtn = div.querySelector('.edit-btn');
+                if (editBtn) {
+                    editBtn.addEventListener('click', async () => {
+                        menu.classList.remove('active');
+                        const newText = prompt('Mesajı düzenle:', data.text || '');
+                        if (newText === null) return;
+                        try {
+                            const res = await fetch('/api/edit', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: data.id,
+                                    username: usernameInput.value.trim(),
+                                    text: newText
+                                })
+                            });
+                            const resData = await res.json();
+                            if (!res.ok) alert(resData.message || 'Düzenlenemedi');
+                        } catch (err) {
+                            alert('Bağlantı hatası');
+                        }
+                    });
+                }
+
+                const deleteBtn = div.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', async () => {
+                        menu.classList.remove('active');
+                        if (!confirm('Bu mesajı silmek istediğine emin misin?')) return;
+                        try {
+                            const res = await fetch('/api/delete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: data.id,
+                                    username: usernameInput.value.trim()
+                                })
+                            });
+                            const resData = await res.json();
+                            if (!res.ok) alert(resData.message || 'Silinemedi');
+                        } catch (err) {
+                            alert('Bağlantı hatası');
+                        }
+                    });
+                }
             }
 
             chatContainer.appendChild(div);
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            scrollToBottom();
         }
     </script>
 </body>
